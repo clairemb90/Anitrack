@@ -14,7 +14,11 @@ absnumFramespersecond=vidObj.FrameRate;%frame rate
 multi=input('Single tracking (1) or Multitracking (2)?');
 if multi==1
     manu=input('Manual detection when software fails? Yes (1) No (2)');
+     num_ani=1;
+elseif multi==2
+    num_ani=input('how many animals?');
 end
+
 vide=input('30 s video of detected animals? Yes (1) No (2)?');
 ana=input('Analysis? Yes (1) No (2)?');
 
@@ -84,11 +88,14 @@ for rroi=1:numb_roi
         circle=imellipse;
         pause('on');
         pause;
-        xy(:,:,rroi)=circle.getVertices;
-        pos(1,1,rroi)=min(xy,1);
-        pos(2,1,rroi)=max(xy,1);
-        y_extrem(1,rroi)=min(xy,2);
-        y_extrem(2,rroi)=max(xy,2);
+        xy=circle.getVertices;
+        mmin=min(xy);
+        mmax=max(xy);
+        pos(1,1,rroi)=mmin(1);
+        pos(2,1,rroi)=mmax(1);
+        y_extrem(1,rroi)=mmin(2);
+        y_extrem(2,rroi)=mmax(2);
+        clear xy
     end
     darbri(rroi)=input('Object darker (1) or brighter (2) than background?');
 end
@@ -112,9 +119,16 @@ if numb_roibeh~=0
             circle=imellipse;
             pause('on');
             pause;
-            xy(:,:,rroibeh)=circle.getVertices;
+            xy_temp=circle.getVertices;
+            mmin=min(xy_temp);
+            mmax=max(xy_temp);
+            xy(1,rroibeh)=mmin(1);
+            xy(2,rroibeh)=mmin(2);
+            xy(3,rroibeh)=mmax(1);
+            xy(4,rroibeh)=mmax(2);
         end
         close all
+        clear xy_temp
     end
 end
 close all
@@ -151,13 +165,6 @@ if sum(ismember(answer,'No'))~=0 && cinq>300
 end
 
 %% define threshold (gui) & number animals
-if multi==2
-    imshow(s_b(1).cdata)
-    num_ani=input('how many animals?');
-    close all
-else
-    num_ani=0;
-end
 
 for roui=1:numb_roi
     th_whol=5;  %(default)
@@ -345,8 +352,7 @@ for ind=1:fram
             elseif nombsup==2
                 centroids_whole(ind,:,1,roui) = cat(1, v(animal(nombsup-1)).Centroid(1:2));
                 m_area(ind,roui)=v(animal(nombsup-1)).Area;
-                
-                
+                    
             end
         elseif multi==2 && ~isempty(animal)
             
@@ -395,25 +401,28 @@ for ind=1:fram
     clear v animal prov s t
     waitbar(ind/fram)
 end
-    
+ 
+centroids_whole(centroids_whole==0)=NaN;
 %% save important variables in mat file
 
 cd(namefich)
 save(strcat(namefich,'_background'),'background','th_whole','m_area_r','length_r','-v7.3') ;
 save(strcat(namefich,'_roi'),'scale','pos','y_extrem','numb_roi','numb_roibeh','xy','-v7.3');
-save(strcat(namefich,'_output'),'centroids_whole','tbetwframes','-v7.3') ;
+save(strcat(namefich,'_output'),'centroids_whole','fram','num_ani','absnumFramespersecond','namefich','-v7.3') ;
 if cue~=4
     save(strcat(namefich,'_sections'),'fram_s','fram_toi','-v7.3') ;
 end
-%xlswrite
+close all
 %% simple analysis
 if ana==1
-    analysisofdata
+   analysisofdata(background,absnumFramespersecond,centroids_whole,numb_roi,numb_roibeh,namefich,fram,xy,pos,y_extrem,num_ani)
 end
 cd ..
+
 %% create video?
 if vide==1
     video_trace(centroids_whole,num_ani,fram,multi,numFramespersecondtoconsider,numb_roi,namefich,indtab,vidObj)
 end
-% clear all
-% close all
+
+clear all
+close all
